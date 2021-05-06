@@ -8,11 +8,12 @@ const firestore = firebase.firestore();
 const addHamster = async (req, res, next) => {
     try {
         const data = req.body;
-        await firestore.collection('hamster').doc().set(data);
-        res.send('Hamster saved successfuly');
-        res.status(200).send('Hamster saved successfuly');
+        const docRef = await firestore.collection('hamster').doc();
+        docRef.set(data);
+        const docId = docRef.id;
+        res.status(200).json({ "id": docId });
     } catch (error) {
-        res.status(400).send(error.message);
+        res.sendStatus(400).send(error.message);
     }
 }
 const getAllHamsters = async (req, res, next) => {
@@ -68,7 +69,7 @@ const getHamster = async (req, res, next) => {
         const hamster = await firestore.collection('hamster').doc(id);
         const data = await hamster.get();
         if(!data.exists) {
-            res.status(404).send('Hamster with the given ID not found');
+            res.status(404).json({ 'message': 'Hamster with the given ID not found' });
         }else {
             res.status(200).send(data.data());
         }
@@ -95,7 +96,7 @@ const getRandomHamster = async (req, res, next) => {
         if(!data.exists) {
             res.status(404).send('Hamster with the given ID not found');
         }else {
-            res.status(200).send(data.data());
+            res.status(200).json(data.data());
         }
     } catch (error) {
         res.status(400).send(error.message);
@@ -107,9 +108,19 @@ const updateHamster = async (req, res, next) => {
     try {
         const id = req.params.id;
         const data = req.body;
-        const hamster =  await firestore.collection('hamster').doc(id);
-        await hamster.update(data);
-        res.status(200).send('Hamster record updated successfully');        
+        if (Object.entries(data).length === 0) {
+            res.status(400).send('bad request');
+        } else {
+            const hamsterRef = await firestore.collection('hamster').doc(id);
+            const hamster = await hamsterRef.get();
+            if (!hamster.exists) {
+                res.status(404).send(`Hamster with the given ID: ${id} not found`);
+            } else {
+                await hamsterRef.update(data);
+                res.status(200).send('Hamster record updated successfully');      
+            }
+        }
+            
     } catch (error) {
         res.status(400).send(error.message);
     }
@@ -118,8 +129,16 @@ const updateHamster = async (req, res, next) => {
 const deleteHamster = async (req, res, next) => {
     try {
         const id = req.params.id;
-        await firestore.collection('hamster').doc(id).delete();
-        res.status(200).send('Record deleted successfuly');
+        await firestore.collection('hamster').doc(id);
+        const hamsterRef = await firestore.collection('hamster').doc(id);
+        const hamster = await hamsterRef.get();
+        if (!hamster.exists) {
+            res.status(404).send(`Hamster with the given ID: ${id} not found`);
+        } else {
+            await hamsterRef.delete();
+            res.status(200).send('Record deleted successfuly');     
+        }
+        
     } catch (error) {
         res.status(400).send(error.message);
     }
